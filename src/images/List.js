@@ -12,7 +12,10 @@ const LIST_IMAGES = gql`
         images {
             id
             name
-            nodes
+            nodes {
+                name
+                namespace
+            }
             createdAt
             deletedAt
         }
@@ -44,7 +47,7 @@ function ListItem({ image, isSelected, onSelect }) {
             </div>
             <div className={styles.description}>
                 <h2>{image.name}</h2>
-                <p>{image.nodes.join(', ')}</p>
+                <p>{JSON.stringify(image.nodes)}</p>{/* TODO: change this to show better data */}
             </div>
             <div className={styles.metadata}>
                 <div>First Seen <TimeAgo date={image.createdAt} /></div>
