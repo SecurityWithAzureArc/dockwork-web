@@ -26,6 +26,7 @@
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
+    justify-content: center;
 }
 
 .listItem .description h2 {
@@ -42,4 +43,13 @@
     border: 2px solid #cc2929;
     border-radius: 0.25rem;
     cursor: pointer;
+}
+
+.listItem .metadata {
+    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    color: #444;
+    text-align: right;
 }

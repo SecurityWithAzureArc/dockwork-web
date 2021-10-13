@@ -1,6 +1,7 @@
 import { gql, useQuery, useMutation, useSubscription, useApolloClient } from "@apollo/client"
 import cs from 'classnames'
 import { useMemo, useState } from "react"
+import TimeAgo from 'react-timeago'
 
 import DeleteModal from "./DeleteModal"
 
@@ -12,6 +13,7 @@ const LIST_IMAGES = gql`
             id
             name
             nodes
+            createdAt
             deletedAt
         }
     }
@@ -43,6 +45,10 @@ function ListItem({ image, isSelected, onSelect }) {
             <div className={styles.description}>
                 <h2>{image.name}</h2>
                 <p>{image.nodes.join(', ')}</p>
+            </div>
+            <div className={styles.metadata}>
+                <div>First Seen <TimeAgo date={image.createdAt} /></div>
+                {image.deletedAt ? <div>Deleted <TimeAgo date={image.deletedAt} /></div> : null}
             </div>
         </div>
     )
