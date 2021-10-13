@@ -1,0 +1,41 @@
+.listToolbar {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.listItem {
+    display: flex;
+
+    border: 1px solid #ddd;
+    border-radius: 0.5rem;
+    margin-bottom: 0.25rem;
+    padding: 0.5rem;
+}
+
+.listItem .multiSelect {
+    display: flex;
+    align-items: center;
+    margin-right: 0.5rem;
+}
+
+.listItem .description {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+}
+
+.listItem .description h2 {
+    font-size: 1.2rem;
+    margin: 0;
+}
+
+.listItem .description p {
+    margin: 0;
+}
+
+.listItem .deleteButton {
+    background: #ff4646;
+    border: 2px solid #cc2929;
+    border-radius: 0.25rem;
+    cursor: pointer;
+}
