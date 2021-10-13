@@ -1,45 +1,73 @@
-import { gql, useQuery, useMutation } from "@apollo/client"
+import { gql, useQuery, useMutation, useSubscription, useApolloClient } from "@apollo/client"
+import cs from 'classnames'
 import { useMemo, useState } from "react"
+
 import DeleteModal from "./DeleteModal"
 
 import styles from './List.module.css'
 
 const LIST_IMAGES = gql`
-    query {
+    query ListImages {
         images {
+            id
             name
             nodes
-            shouldDelete
+            deletedAt
+        }
+    }
+`
+
+const WATCH_IMAGE_DELETIONS = gql`
+    subscription {
+        deleteImageNotification {
+            id
+            deletedAt
         }
     }
 `
 
 const DELETE_IMAGES = gql`
-    mutation Delete($name: String!) {
-        deleteImage(name: $name) {
+    mutation DeleteImages($names: [String!]!) {
+        deleteImages(names: $names) {
             name
         }
     }
 `
 
-function ListItem({ image, isSelected, onDelete, onSelect }) {
+function ListItem({ image, isSelected, onSelect }) {
     return (
-        <div className={styles.listItem} key={image.name}>
+        <div className={cs(styles.listItem, { [styles.selected]: !!image.deletedAt })} key={image.name}>
             <div className={styles.multiSelect}>
-                <input type="checkbox" checked={isSelected} onClick={onSelect} />
+                <input type="checkbox" checked={isSelected} onChange={onSelect} />
             </div>
             <div className={styles.description}>
                 <h2>{image.name}</h2>
                 <p>{image.nodes.join(', ')}</p>
             </div>
-            <button className={styles.deleteButton} onClick={onDelete}>Delete</button>
         </div>
     )
 }
 
 export default function List() {
+    const apolloClient = useApolloClient()
     const { loading, error, data } = useQuery(LIST_IMAGES)
-    const [deleteImage, { deleteData, deleteLoading, deleteError }] = useMutation(DELETE_IMAGES)
+    useSubscription(WATCH_IMAGE_DELETIONS, {
+        shouldResubscribe: true,
+        onSubscriptionData: (opts) => {
+            const { id, deletedAt } = opts.subscriptionData.data.deleteImageNotification
+            apolloClient.writeFragment({
+                id: `ImageInfo:${id}`,
+                fragment: gql`
+                    fragment ListImages on ImageInfo {
+                        deletedAt
+                    }
+                `,
+                data: { deletedAt },
+            })
+        }
+    })
+
+    const [deleteImages] = useMutation(DELETE_IMAGES, { refetchQueries: ['ListImages'] })
     const [selected, setSelected] = useState({})
     const [showDeleteModal, setShowDeleteModal] = useState(false)
 
@@ -47,18 +75,9 @@ export default function List() {
         return Object.keys(selected).filter(key => selected[key])
     }, [selected])
 
-    const onItemDelete = (item) => {
-        setSelected({ [item.name]: true })
-        setShowDeleteModal(true)
-    }
-
-    const deleteImagesHandler = (selected) => {
-        Object.keys(selected).map((key) => (
-            deleteImage({variables: {name: key}})
-        ))
-
-        // TODO: update list of images
-    }
+    const deleteImagesHandler = async () => deleteImages({ variables: { names: selectedItems } })
+        .then(() => setSelected({}))
+        .finally(() => setShowDeleteModal(false))
 
     const toggleDeleteModal = () => setShowDeleteModal(prev => !prev)
 
@@ -84,8 +103,7 @@ export default function List() {
             {data.images.map((image) => <ListItem
                 key={image.name}
                 image={image}
-                isSelected={selected[image]}
-                onDelete={() => onItemDelete(image)}
+                isSelected={selected[image.name] === true}
                 onSelect={() => onSelectionChange(image)}
             />)}
 
