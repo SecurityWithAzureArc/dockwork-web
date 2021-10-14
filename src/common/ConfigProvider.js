@@ -6,7 +6,7 @@ export const useConfig = () => useContext(ConfigContext)
 
 const defaultConfig = {
     apolloSock: "ws://localhost:5000/graphql",
-    apolloHttp: "http://localhost:5000/graphql"
+    apolloHttp: "http://localhost:3000/graphql"
 }
 
 export default function ConfigProvider({ children }) {
