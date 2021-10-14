@@ -6,6 +6,8 @@ import ApolloProvider from './common/ApolloProvider';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+import './index.css';
+
 ReactDOM.render(
   <React.StrictMode>
     <ConfigProvider>

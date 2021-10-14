@@ -47,12 +47,28 @@ function ListItem({ image, isSelected, onSelect }) {
             </div>
             <div className={styles.description}>
                 <h2>{image.name}</h2>
-                <p>{JSON.stringify(image.nodes)}</p>{/* TODO: change this to show better data */}
+                <p>{image.nodes.map(node => <span className={styles.nodeTag}>{node.name}:{node.namespace}</span>)}</p>
             </div>
             <div className={styles.metadata}>
                 <div>First Seen <TimeAgo date={image.createdAt} /></div>
                 {image.deletedAt ? <div>Deleted <TimeAgo date={image.deletedAt} /></div> : null}
             </div>
+        </div>
+    )
+}
+
+function ListToolbar() {
+    return (
+        <div className={styles.listToolbar}>
+
+        </div>
+    )
+}
+
+function SelectedListToolbar({ selectedCount, onDelete }) {
+    return (
+        <div className={styles.listToolbar}>
+            <button className={styles.btnDanger} onClick={onDelete}>Delete {selectedCount} item(s)</button>
         </div>
     )
 }
@@ -81,7 +97,7 @@ export default function List() {
     const [showDeleteModal, setShowDeleteModal] = useState(false)
 
     const selectedItems = useMemo(() => {
-        return Object.keys(selected).filter(key => selected[key])
+        return Object.keys(selected).filter(key => selected[key]) || []
     }, [selected])
 
     const deleteImagesHandler = async () => deleteImages({ variables: { names: selectedItems } })
@@ -105,18 +121,20 @@ export default function List() {
 
     return (
         <>
-            <div className={styles.listToolbar}>
-                {selectedItems && selectedItems.length ? <button onClick={toggleDeleteModal}>Delete {selectedItems.length} item(s)</button> : null}
-            </div>
+            {selectedItems.length
+                ? <SelectedListToolbar onDelete={toggleDeleteModal} selectedCount={selectedItems.length} />
+                : <ListToolbar />}
 
             {data.images.length ? null : 'No images yet!'}
 
-            {data.images.map((image) => <ListItem
-                key={image.name}
-                image={image}
-                isSelected={selected[image.name] === true}
-                onSelect={() => onSelectionChange(image)}
-            />)}
+            <div className={styles.list}>
+                {data.images.map((image) => <ListItem
+                    key={image.name}
+                    image={image}
+                    isSelected={selected[image.name] === true}
+                    onSelect={() => onSelectionChange(image)}
+                />)}
+            </div>
 
             <DeleteModal show={showDeleteModal} onCancel={toggleDeleteModal} onDelete={deleteImagesHandler} items={Object.keys(selected)} />
         </>
