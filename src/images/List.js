@@ -109,6 +109,8 @@ export default function List() {
                 {selectedItems && selectedItems.length ? <button onClick={toggleDeleteModal}>Delete {selectedItems.length} item(s)</button> : null}
             </div>
 
+            {data.images.length ? null : 'No images yet!'}
+
             {data.images.map((image) => <ListItem
                 key={image.name}
                 image={image}

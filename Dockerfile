@@ -10,5 +10,13 @@ RUN yarn build
 
 FROM nginx:alpine
 
+ENV GRAPHQL_ENDPOINT="http://api/graphql" \
+    GRAPHQL_SOCK_ENDPOINT="ws://api/graphql"
+
+COPY deploy/entrypoint.sh /entrypoint.sh
 COPY deploy/nginx.conf /etc/nginx/nginx.conf
 COPY --from=builder /app/build/ /var/www/html
+
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT [ "/entrypoint.sh" ]
