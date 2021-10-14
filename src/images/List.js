@@ -40,14 +40,21 @@ const DELETE_IMAGES = gql`
 `
 
 function ListItem({ image, isSelected, onSelect }) {
+    let notificationMessage = ''
+    if (image.deletedAt && image.nodes.length) {
+        notificationMessage = `Delete pending for ${image.nodes.length} node(s)`
+    } else if (image.deletedAt) {
+        notificationMessage = 'All images deleted!'
+    }
+
     return (
-        <div className={cs(styles.listItem, { [styles.selected]: !!image.deletedAt })} key={image.name}>
+        <div className={cs(styles.listItem, { [styles.deleted]: !!image.deletedAt })} key={image.name}>
             <div className={styles.multiSelect}>
                 <input type="checkbox" checked={isSelected} onChange={onSelect} />
             </div>
             <div className={styles.description}>
-                <h2>{image.name}</h2>
-                <p>{image.nodes.map(node => <span className={styles.nodeTag}>{node.name}:{node.namespace}</span>)}</p>
+                <h2>{image.name}{notificationMessage ? <small>{notificationMessage}</small> : null}</h2>
+                {image.nodes.length ? <p>{image.nodes.map(node => <span className={styles.nodeTag}>{node.name}:{node.namespace}</span>)}</p> : null}
             </div>
             <div className={styles.metadata}>
                 <div>First Seen <TimeAgo date={image.createdAt} /></div>
@@ -59,9 +66,7 @@ function ListItem({ image, isSelected, onSelect }) {
 
 function ListToolbar() {
     return (
-        <div className={styles.listToolbar}>
-
-        </div>
+        <div className={styles.listToolbar}></div>
     )
 }
 
