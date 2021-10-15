@@ -128,6 +128,9 @@ export default function List() {
     const sortedFilteredImages = data.images
         .filter((image) => image.nodes.length > 0)
         .sort((image1, image2) => {
+            if (!image1.deletedAt && !image2.deletedAt) {
+                return new Date(image2.createdAt) - new Date(image1.createdAt)
+            }
             if (!image1.deletedAt) {
                 return -1
             }
