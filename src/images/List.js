@@ -80,7 +80,9 @@ function SelectedListToolbar({ selectedCount, onDelete }) {
 
 export default function List() {
     const apolloClient = useApolloClient()
-    const { loading, error, data } = useQuery(LIST_IMAGES)
+    const POLL_INTERVAL = 600000
+    const { loading, error, data } = useQuery(LIST_IMAGES, {pollInterval: POLL_INTERVAL})
+
     useSubscription(WATCH_IMAGE_DELETIONS, {
         shouldResubscribe: true,
         onSubscriptionData: (opts) => {
