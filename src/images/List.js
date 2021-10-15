@@ -54,7 +54,7 @@ function ListItem({ image, isSelected, onSelect }) {
             </div>
             <div className={styles.description}>
                 <h2>{image.name}{notificationMessage ? <small>{notificationMessage}</small> : null}</h2>
-                {image.nodes.length ? <p>{image.nodes.map(node => <span className={styles.nodeTag}>{node.name}:{node.namespace}</span>)}</p> : null}
+                {image.nodes.length ? <p>{image.nodes.map(node => <span key={node.name + node.namespace} className={styles.nodeTag}>{node.name}:{node.namespace}</span>)}</p> : null}
             </div>
             <div className={styles.metadata}>
                 <div>First Seen <TimeAgo date={image.createdAt} /></div>
@@ -124,6 +124,19 @@ export default function List() {
         return `Error: ${error}`
     }
 
+    // TODO: Setup filter & sort at API layer instead of UI layer
+    const sortedFilteredImages = data.images
+        .filter((image) => image.nodes.length > 0)
+        .sort((image1, image2) => {
+            if (!image1.deletedAt) {
+                return -1
+            }
+            if (!image2.deletedAt) {
+                return 1
+            }
+            return new Date(image2.deletedAt) - new Date(image1.deletedAt)
+        })
+
     return (
         <>
             {selectedItems.length
@@ -133,7 +146,7 @@ export default function List() {
             {data.images.length ? null : 'No images yet!'}
 
             <div className={styles.list}>
-                {data.images.map((image) => <ListItem
+                {sortedFilteredImages.map((image) => <ListItem
                     key={image.name}
                     image={image}
                     isSelected={selected[image.name] === true}
