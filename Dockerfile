@@ -3,6 +3,7 @@ FROM node:alpine AS builder
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json yarn.lock ./
+RUN npm install --save styled-components
 RUN yarn install
 
 COPY . .

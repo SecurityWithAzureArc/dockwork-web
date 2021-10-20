@@ -1,4 +1,6 @@
 import { gql, useQuery, useMutation, useSubscription, useApolloClient } from "@apollo/client"
+import { InMemoryCache } from "@apollo/client";
+import { offsetLimitPagination } from "@apollo/client/utilities";
 import cs from 'classnames'
 import { useMemo, useState } from "react"
 import TimeAgo from 'react-timeago'
@@ -7,17 +9,43 @@ import DeleteModal from "./DeleteModal"
 
 import styles from './List.module.css'
 
+import styled from "styled-components";
+
+const theme = {
+    blue: {
+      default: "#3f51b5",
+      hover: "#283593"
+    }
+  };
+
+const Button = styled.button`
+  background-color: ${(props) => theme['blue'].default};
+  color: white;
+  padding: 5px 15px;
+  border-radius: 5px;
+  outline: 0;
+  text-transform: uppercase;
+  margin: 10px 0px;
+  cursor: pointer;
+  box-shadow: 0px 2px 2px lightgray;
+  transition: ease background-color 250ms;
+  &:hover {
+    background-color: ${(props) => theme['blue'].hover};
+  }
+  &:disabled {
+    cursor: default;
+    opacity: 0.7;
+  }
+`;
+
 const LIST_IMAGES = gql`
-    query ListImages {
-        images {
-            id
+    query ListImages ($offset: Int!) {
+        images(skip: $offset) {
             name
             nodes {
                 name
                 namespace
             }
-            createdAt
-            deletedAt
         }
     }
 `
@@ -38,6 +66,16 @@ const DELETE_IMAGES = gql`
         }
     }
 `
+
+const cache = new InMemoryCache({
+    typePolicies: {
+      Query: {
+        fields: {
+          images: offsetLimitPagination()
+        },
+      },
+    },
+  });
 
 function ListItem({ image, isSelected, onSelect }) {
     let notificationMessage = ''
@@ -78,10 +116,16 @@ function SelectedListToolbar({ selectedCount, onDelete }) {
     )
 }
 
+function merge(existing, incoming) {
+    const merged = existing ? existing.slice(0) : [];
+    merged.push.apply(merged, incoming);
+    return merged;
+}
+
 export default function List() {
     const apolloClient = useApolloClient()
     const POLL_INTERVAL = 600000
-    const { loading, error, data } = useQuery(LIST_IMAGES, {pollInterval: POLL_INTERVAL})
+    const { loading, error, data, fetchMore } = useQuery(LIST_IMAGES, {pollInterval: POLL_INTERVAL, variables: { offset: 0 }})
 
     useSubscription(WATCH_IMAGE_DELETIONS, {
         shouldResubscribe: true,
@@ -102,6 +146,7 @@ export default function List() {
     const [deleteImages] = useMutation(DELETE_IMAGES, { refetchQueries: ['ListImages'] })
     const [selected, setSelected] = useState({})
     const [showDeleteModal, setShowDeleteModal] = useState(false)
+    const [listItems, setListItems] = useState(data ? data.images : [])
 
     const selectedItems = useMemo(() => {
         return Object.keys(selected).filter(key => selected[key]) || []
@@ -127,8 +172,8 @@ export default function List() {
     }
 
     // TODO: Setup filter & sort at API layer instead of UI layer
-    const sortedFilteredImages = data.images
-        .filter((image) => image.nodes.length > 0)
+    const sortAndFilterImages = function(images) {
+        return images.filter((image) => image.nodes.length > 0)
         .sort((image1, image2) => {
             if (!image1.deletedAt && !image2.deletedAt) {
                 return new Date(image2.createdAt) - new Date(image1.createdAt)
@@ -141,6 +186,28 @@ export default function List() {
             }
             return new Date(image2.deletedAt) - new Date(image1.deletedAt)
         })
+    }
+
+    // set initial data on first render
+    if(listItems.length == 0)
+    {
+        setListItems(sortAndFilterImages(data.images))
+    }
+    
+    const fetchMoreWrapper = function() {
+        console.log('fetching more data')
+        fetchMore({
+            variables: {
+                offset: data.images.length
+            },
+        }).then((newData) => {
+            console.log(newData.data)
+            data.images = merge(data.images, newData.data.images)
+            var sortedFilteredImages = sortAndFilterImages(data.images)
+            // setState to redraw
+            setListItems(sortedFilteredImages)
+        })
+    }
 
     return (
         <>
@@ -151,13 +218,15 @@ export default function List() {
             {data.images.length ? null : 'No images yet!'}
 
             <div className={styles.list}>
-                {sortedFilteredImages.map((image) => <ListItem
+                {listItems.map((image) => <ListItem
                     key={image.name}
                     image={image}
                     isSelected={selected[image.name] === true}
                     onSelect={() => onSelectionChange(image)}
                 />)}
             </div>
+
+            <Button onClick={() => fetchMoreWrapper()}>Load more</Button>
 
             <DeleteModal show={showDeleteModal} onCancel={toggleDeleteModal} onDelete={deleteImagesHandler} items={Object.keys(selected)} />
         </>
