@@ -1,51 +1,24 @@
 import { gql, useQuery, useMutation, useSubscription, useApolloClient } from "@apollo/client"
-import { InMemoryCache } from "@apollo/client";
-import { offsetLimitPagination } from "@apollo/client/utilities";
 import cs from 'classnames'
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import TimeAgo from 'react-timeago'
 
 import DeleteModal from "./DeleteModal"
 
 import styles from './List.module.css'
 
-import styled from "styled-components";
-
-const theme = {
-    blue: {
-      default: "#3f51b5",
-      hover: "#283593"
-    }
-  };
-
-const Button = styled.button`
-  background-color: ${(props) => theme['blue'].default};
-  color: white;
-  padding: 5px 15px;
-  border-radius: 5px;
-  outline: 0;
-  text-transform: uppercase;
-  margin: 10px 0px;
-  cursor: pointer;
-  box-shadow: 0px 2px 2px lightgray;
-  transition: ease background-color 250ms;
-  &:hover {
-    background-color: ${(props) => theme['blue'].hover};
-  }
-  &:disabled {
-    cursor: default;
-    opacity: 0.7;
-  }
-`;
-
+const INFINITE_SCROLL_OFFSET = 200
 const LIST_IMAGES = gql`
     query ListImages ($offset: Int!) {
         images(skip: $offset) {
+            id
             name
             nodes {
                 name
                 namespace
             }
+            createdAt
+            deletedAt
         }
     }
 `
@@ -66,16 +39,6 @@ const DELETE_IMAGES = gql`
         }
     }
 `
-
-const cache = new InMemoryCache({
-    typePolicies: {
-      Query: {
-        fields: {
-          images: offsetLimitPagination()
-        },
-      },
-    },
-  });
 
 function ListItem({ image, isSelected, onSelect }) {
     let notificationMessage = ''
@@ -116,16 +79,11 @@ function SelectedListToolbar({ selectedCount, onDelete }) {
     )
 }
 
-function merge(existing, incoming) {
-    const merged = existing ? existing.slice(0) : [];
-    merged.push.apply(merged, incoming);
-    return merged;
-}
-
 export default function List() {
+    const loadButtonRef = useRef()
     const apolloClient = useApolloClient()
-    const POLL_INTERVAL = 600000
-    const { loading, error, data, fetchMore } = useQuery(LIST_IMAGES, {pollInterval: POLL_INTERVAL, variables: { offset: 0 }})
+    const POLL_INTERVAL = 60_000
+    const { loading, error, data, fetchMore } = useQuery(LIST_IMAGES, { pollInterval: POLL_INTERVAL, variables: { offset: 0 } })
 
     useSubscription(WATCH_IMAGE_DELETIONS, {
         shouldResubscribe: true,
@@ -146,11 +104,33 @@ export default function List() {
     const [deleteImages] = useMutation(DELETE_IMAGES, { refetchQueries: ['ListImages'] })
     const [selected, setSelected] = useState({})
     const [showDeleteModal, setShowDeleteModal] = useState(false)
-    const [listItems, setListItems] = useState(data ? data.images : [])
+    const [loadingMore, setLoadingMore] = useState(false)
 
-    const selectedItems = useMemo(() => {
-        return Object.keys(selected).filter(key => selected[key]) || []
-    }, [selected])
+    const handleLoadMore = () => {
+        if (loadingMore) {
+            return;
+        }
+
+        setLoadingMore(true)
+        fetchMore({ variables: { offset: data.images.length } }).then(() => setLoadingMore(false))
+    }
+
+    useEffect(() => {
+        if (!loadButtonRef.current) {
+            return
+        }
+
+        const handler = () => {
+            if (loadButtonRef.current.getBoundingClientRect().top - window.innerHeight < INFINITE_SCROLL_OFFSET) {
+                handleLoadMore()
+            }
+        }
+
+        window.addEventListener("scroll", handler, { passive: true })
+        return () => window.removeEventListener("scroll", handler)
+    }, [loadButtonRef.current, loading, loadingMore])
+
+    const selectedItems = useMemo(() => Object.keys(selected).filter(key => selected[key]) || [], [selected])
 
     const deleteImagesHandler = async () => deleteImages({ variables: { names: selectedItems } })
         .then(() => setSelected({}))
@@ -171,44 +151,6 @@ export default function List() {
         return `Error: ${error}`
     }
 
-    // TODO: Setup filter & sort at API layer instead of UI layer
-    const sortAndFilterImages = function(images) {
-        return images.filter((image) => image.nodes.length > 0)
-        .sort((image1, image2) => {
-            if (!image1.deletedAt && !image2.deletedAt) {
-                return new Date(image2.createdAt) - new Date(image1.createdAt)
-            }
-            if (!image1.deletedAt) {
-                return -1
-            }
-            if (!image2.deletedAt) {
-                return 1
-            }
-            return new Date(image2.deletedAt) - new Date(image1.deletedAt)
-        })
-    }
-
-    // set initial data on first render
-    if(listItems.length == 0)
-    {
-        setListItems(sortAndFilterImages(data.images))
-    }
-    
-    const fetchMoreWrapper = function() {
-        console.log('fetching more data')
-        fetchMore({
-            variables: {
-                offset: data.images.length
-            },
-        }).then((newData) => {
-            console.log(newData.data)
-            data.images = merge(data.images, newData.data.images)
-            var sortedFilteredImages = sortAndFilterImages(data.images)
-            // setState to redraw
-            setListItems(sortedFilteredImages)
-        })
-    }
-
     return (
         <>
             {selectedItems.length
@@ -218,15 +160,17 @@ export default function List() {
             {data.images.length ? null : 'No images yet!'}
 
             <div className={styles.list}>
-                {listItems.map((image) => <ListItem
-                    key={image.name}
+                {data.images.filter(image => image.nodes.length > 0).map((image, idx) => <ListItem
+                    key={idx + image.name}
                     image={image}
                     isSelected={selected[image.name] === true}
                     onSelect={() => onSelectionChange(image)}
                 />)}
             </div>
 
-            <Button onClick={() => fetchMoreWrapper()}>Load more</Button>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <button ref={loadButtonRef} className={styles.loadMoreButton} onClick={handleLoadMore} disabled={loadingMore}>{loadingMore ? 'Loading more results...' : 'Load More'}</button>
+            </div>
 
             <DeleteModal show={showDeleteModal} onCancel={toggleDeleteModal} onDelete={deleteImagesHandler} items={Object.keys(selected)} />
         </>

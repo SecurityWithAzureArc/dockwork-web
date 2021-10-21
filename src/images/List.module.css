@@ -91,3 +91,25 @@
     margin-right: 0.25rem;
     border-radius: 0.25rem;
 }
+
+.loadMoreButton {
+    background-color: #3f51b5;
+    color: white;
+    padding: 5px 15px;
+    border-radius: 5px;
+    outline: 0;
+    text-transform: uppercase;
+    margin: 10px 0px;
+    cursor: pointer;
+    box-shadow: 0px 2px 2px lightgray;
+    transition: ease background-color 250ms;
+}
+
+.loadMoreButton:hover {
+    background-color: #283593;
+}
+
+.loadMoreButton:disabled {
+    cursor: default;
+    opacity: 0.7;
+}  

@@ -7,7 +7,18 @@ import { useConfig } from "./ConfigProvider";
 
 export default function ApolloProvider({ children }) {
     const config = useConfig()
-    const apolloCache = useMemo(() => new InMemoryCache(), [])
+    const apolloCache = useMemo(() => new InMemoryCache({
+        typePolicies: {
+            Query: {
+                fields: {
+                    images: {
+                        keyArgs: false,
+                        merge: (existing = [], incoming) => [...existing, ...incoming],
+                    }
+                }
+            }
+        }
+    }), [])
 
     const apolloClient = useMemo(() => {
         if (!config || !apolloCache) {

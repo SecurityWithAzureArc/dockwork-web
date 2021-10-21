@@ -1,15 +1,14 @@
-FROM node:alpine AS builder
+FROM node:12-alpine AS builder
 
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json yarn.lock ./
-RUN npm install --save styled-components
 RUN yarn install
 
 COPY . .
 RUN yarn build
 
-FROM nginx:alpine
+FROM nginx:1.21-alpine
 
 ENV GRAPHQL_ENDPOINT="http://api/graphql" \
     GRAPHQL_SOCK_ENDPOINT="ws://api/graphql"
